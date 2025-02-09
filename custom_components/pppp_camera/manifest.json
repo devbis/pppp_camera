@@ -1,0 +1,11 @@
+{
+  "domain": "pppp_camera",
+  "name": "PPPP Camera",
+  "codeowners": ["@devbis"],
+  "config_flow": true,
+  "dependencies": ["ffmpeg"],
+  "iot_class": "local_push",
+  "loggers": ["aiopppp"],
+  "requirements": ["git+https://github.com/devbis/aiopppp@main#aiopppp"],
+  "version": "1.0.0"
+}
