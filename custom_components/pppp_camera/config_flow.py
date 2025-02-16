@@ -129,7 +129,7 @@ class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
         config_entry: ConfigEntry,
     ) -> PPPPCameraFlowHandler:
         """Get the options flow for this handler."""
-        return PPPPCameraFlowHandler()
+        return PPPPCameraOptionsFlowHandler()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None

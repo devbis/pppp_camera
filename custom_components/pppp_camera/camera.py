@@ -47,7 +47,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up a MJPEG IP Camera based on a config entry."""
+    """Set up a PPPP Camera based on a config entry."""
     async_add_entities(
         [
             PPPPCamera(
@@ -90,7 +90,7 @@ async def async_extract_image_from_mjpeg(stream: AsyncIterator[bytes]) -> bytes 
 
 
 class PPPPCamera(Camera):
-    """An implementation of an IP camera that is reachable over a URL."""
+    """An implementation of a PPPP camera."""
     _attr_is_streaming = True
 
     def __init__(
