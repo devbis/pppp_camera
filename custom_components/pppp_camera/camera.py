@@ -38,8 +38,29 @@ from homeassistant.helpers.httpx_client import get_async_client
 
 from .const import DOMAIN, LOGGER
 
-TIMEOUT = 10
-BUFFER_SIZE = 102400
+TIMEOUT = 30
+# BUFFER_SIZE = 102400
+
+
+async def discover_camera(ip_address: str) -> aiopppp.types.Device:
+    discovery = aiopppp.Discovery(remote_addr=ip_address)
+    result = None
+    found_event = asyncio.Event()
+
+    def on_device_found(camera: aiopppp.types.Device):
+        nonlocal result
+        result = camera
+        found_event.set()
+
+    task = asyncio.create_task(discovery.discover(on_device_found))
+    try:
+        async with asyncio.timeout(TIMEOUT):
+            await asyncio.gather(found_event.wait())
+    finally:
+        task.cancel()
+
+    LOGGER.info('Found %s', result and result.dev_id)
+    return result
 
 
 async def async_setup_entry(
@@ -48,10 +69,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up a PPPP Camera based on a config entry."""
+
+    camera_info = await discover_camera(entry.options[CONF_IP_ADDRESS])
     async_add_entities(
         [
             PPPPCamera(
-                name=entry.title,
+                name=camera_info.dev_id.dev_id,
                 # authentication=entry.options[CONF_AUTHENTICATION],
                 # username=entry.options.get(CONF_USERNAME),
                 # password=entry.options[CONF_PASSWORD],
@@ -259,7 +282,7 @@ class PPPPCamera(Camera):
 
     async def instantiate_session(self):
         if not self._discovery:
-            self._discovery = aiopppp.Discovery()
+            self._discovery = aiopppp.Discovery(remote_addr=self._ip_address)
         if not self._discovery_task:
             self._discovery_task = asyncio.create_task(self._discovery.discover(self.on_device_found))
         if not self._camera_session:

@@ -34,7 +34,7 @@ from .const import LOGGER, DOMAIN
 def async_get_schema(
     defaults: dict[str, Any] | MappingProxyType[str, Any], show_name: bool = False
 ) -> vol.Schema:
-    """Return MJPEG IP Camera schema."""
+    """Return PPPP Camera schema."""
     schema = {
         vol.Required(CONF_IP_ADDRESS, default=defaults.get(CONF_IP_ADDRESS)): str,
         vol.Optional(
@@ -43,11 +43,11 @@ def async_get_schema(
         ): str,
     }
 
-    if show_name:
-        schema = {
-            vol.Required(CONF_NAME, default=defaults.get(CONF_NAME)): str,
-            **schema,
-        }
+    # if show_name:
+    #     schema = {
+    #         vol.Required(CONF_NAME, default=defaults.get(CONF_NAME)): str,
+    #         **schema,
+    #     }
 
     return vol.Schema(schema)
 
