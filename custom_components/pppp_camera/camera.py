@@ -43,22 +43,7 @@ TIMEOUT = 30
 
 
 async def discover_camera(ip_address: str) -> aiopppp.types.Device:
-    discovery = aiopppp.Discovery(remote_addr=ip_address)
-    result = None
-    found_event = asyncio.Event()
-
-    def on_device_found(camera: aiopppp.types.Device):
-        nonlocal result
-        result = camera
-        found_event.set()
-
-    task = asyncio.create_task(discovery.discover(on_device_found))
-    try:
-        async with asyncio.timeout(TIMEOUT):
-            await asyncio.gather(found_event.wait())
-    finally:
-        task.cancel()
-
+    result = await aiopppp.connect(ip_address, timeout=TIMEOUT)
     LOGGER.info('Found %s', result and result.dev_id)
     return result
 
