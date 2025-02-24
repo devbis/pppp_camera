@@ -18,7 +18,7 @@ from homeassistant.const import (
     # CONF_AUTHENTICATION,
     CONF_NAME,
     CONF_IP_ADDRESS,
-    # CONF_PASSWORD,
+    CONF_PASSWORD,
     CONF_USERNAME,
     # CONF_VERIFY_SSL,
     # HTTP_BASIC_AUTHENTICATION,
@@ -41,6 +41,11 @@ def async_get_schema(
             CONF_USERNAME,
             description={"suggested_value": defaults.get(CONF_USERNAME)},
         ): str,
+        vol.Optional(
+            CONF_PASSWORD,
+            description={"suggested_value": defaults.get(CONF_PASSWORD)},
+        ): str,
+        vol.Optional(CONF_NAME, default=defaults.get(CONF_NAME)): str,
     }
 
     # if show_name:
@@ -127,7 +132,7 @@ class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(
         config_entry: ConfigEntry,
-    ) -> PPPPCameraFlowHandler:
+    ) -> OptionsFlow:
         """Get the options flow for this handler."""
         return PPPPCameraOptionsFlowHandler()
 
