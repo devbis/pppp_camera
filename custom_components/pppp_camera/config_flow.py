@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-# from http import HTTPStatus
+import asyncio
 from types import MappingProxyType
 from typing import Any
 
@@ -15,18 +15,15 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.const import (
-    # CONF_AUTHENTICATION,
     CONF_NAME,
     CONF_IP_ADDRESS,
     CONF_PASSWORD,
     CONF_USERNAME,
-    # CONF_VERIFY_SSL,
-    # HTTP_BASIC_AUTHENTICATION,
-    # HTTP_DIGEST_AUTHENTICATION,
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
+from .camera import discover_camera
 from .const import LOGGER, DOMAIN
 
 
@@ -47,12 +44,6 @@ def async_get_schema(
         ): str,
         vol.Optional(CONF_NAME, default=defaults.get(CONF_NAME)): str,
     }
-
-    # if show_name:
-    #     schema = {
-    #         vol.Required(CONF_NAME, default=defaults.get(CONF_NAME)): str,
-    #         **schema,
-    #     }
 
     return vol.Schema(schema)
 
@@ -97,30 +88,19 @@ def async_get_schema(
 async def async_validate_input(
     hass: HomeAssistant, user_input: dict[str, Any]
 ) -> tuple[dict[str, str], str]:
-    """Manage MJPEG IP Camera options."""
+    """Manage PPPP Camera options."""
     errors = {}
-    return errors
+    field = "base"
+    camera_info = None
 
-    # field = "base"
-    # # authentication = HTTP_BASIC_AUTHENTICATION
-    # try:
-    #     for field in (CONF_IP_ADDRESS,):
-    #         if not (url := user_input.get(field)):
-    #             continue
-    #         # authentication = await hass.async_add_executor_job(
-    #         #     validate_url,
-    #         #     url,
-    #         #     user_input.get(CONF_USERNAME),
-    #         #     user_input[CONF_PASSWORD],
-    #         #     user_input[CONF_VERIFY_SSL],
-    #         # )
-    # except InvalidAuth:
-    #     errors["username"] = "invalid_auth"
-    # except (OSError, HTTPError, Timeout):
-    #     LOGGER.exception("Cannot connect to %s", user_input[CONF_IP_ADDRESS])
-    #     errors[field] = "cannot_connect"
-    #
-    # return (errors, authentication)
+    try:
+        ip_address = user_input[CONF_IP_ADDRESS]
+        camera_info = await discover_camera(ip_address)
+    except (TimeoutError, asyncio.TimeoutError):
+        LOGGER.exception("Cannot connect to %s", user_input[CONF_IP_ADDRESS])
+        errors[field] = "cannot_connect"
+
+    return (errors, camera_info.dev_id.dev_id)
 
 
 class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
@@ -143,7 +123,7 @@ class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            errors = await async_validate_input(self.hass, user_input)
+            errors, dev_id = await async_validate_input(self.hass, user_input)
             if not errors:
                 self._async_abort_entries_match(
                     {CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS]}
@@ -152,14 +132,13 @@ class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
                 # Storing data in option, to allow for changing them later
                 # using an options flow.
                 return self.async_create_entry(
-                    title=user_input.get(CONF_NAME, user_input[CONF_IP_ADDRESS]),
+                    title=dev_id,
                     data={},
                     options={
-                        # CONF_AUTHENTICATION: authentication,
                         CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS],
-                        # CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        CONF_USERNAME: user_input.get(CONF_USERNAME),
+                        CONF_PASSWORD: user_input.get(CONF_PASSWORD),
                         # CONF_STILL_IMAGE_URL: user_input.get(CONF_STILL_IMAGE_URL),
-                        # CONF_USERNAME: user_input.get(CONF_USERNAME),
                         # CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
                     },
                 )
@@ -183,7 +162,7 @@ class PPPPCameraOptionsFlowHandler(OptionsFlow):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            errors = await async_validate_input(self.hass, user_input)
+            errors, dev_id = await async_validate_input(self.hass, user_input)
             if not errors:
                 for entry in self.hass.config_entries.async_entries(DOMAIN):
                     if (
@@ -194,13 +173,12 @@ class PPPPCameraOptionsFlowHandler(OptionsFlow):
 
                 if not errors:
                     return self.async_create_entry(
-                        title=user_input.get(CONF_NAME, user_input[CONF_IP_ADDRESS]),
+                        title=dev_id,
                         data={
-                            # CONF_AUTHENTICATION: authentication,
                             CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS],
-                            # CONF_PASSWORD: user_input[CONF_PASSWORD],
+                            CONF_USERNAME: user_input.get(CONF_USERNAME),
+                            CONF_PASSWORD: user_input.get(CONF_PASSWORD),
                             # CONF_STILL_IMAGE_URL: user_input.get(CONF_STILL_IMAGE_URL),
-                            # CONF_USERNAME: user_input.get(CONF_USERNAME),
                             # CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
                         },
                     )

@@ -45,6 +45,19 @@ async def discover_camera(ip_address: str) -> aiopppp.types.Device:
     return result
 
 
+async def get_camera_info(ip_address: str) -> tuple[aiopppp.Device, dict]:
+    camera_info = await discover_camera(ip_address)
+    session = aiopppp.make_session(camera_info, on_device_lost=None)
+    session.start()
+    try:
+        await asyncio.wait_for(session.device_is_ready.wait(), timeout=15)
+        # {'tz': -3, 'time': 3949367342, 'icut': 0, 'batValue': 90, 'batStatus': 1,
+        #  'sysver': 'HQLS_HQT66DP_20240925 11:06:42', 'mcuver': '1.1.1.1', 'sensor': 'GC0329', 'isShow4KMenu': 0,
+        #  'isShowIcutAuto': 1, 'rotmir': 0, 'signal': 100, 'lamp': 1}
+        return camera_info, session.dev_properties
+    finally:
+        session.stop()
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -54,18 +67,8 @@ async def async_setup_entry(
 
     device_address = entry.options[CONF_IP_ADDRESS]
     try:
-        camera_info = await discover_camera(device_address)
-        session = aiopppp.make_session(camera_info, on_device_lost=None)
-        session.start()
-        try:
-            await session.device_is_ready.wait()
-            # {'tz': -3, 'time': 3949367342, 'icut': 0, 'batValue': 90, 'batStatus': 1,
-            #  'sysver': 'HQLS_HQT66DP_20240925 11:06:42', 'mcuver': '1.1.1.1', 'sensor': 'GC0329', 'isShow4KMenu': 0,
-            #  'isShowIcutAuto': 1, 'rotmir': 0, 'signal': 100, 'lamp': 1}
-            camera_properties = session.dev_properties
-        finally:
-            session.stop()
-    except (asyncio.TimeoutError, TimeoutError) as ex:
+        camera_info, camera_properties = await get_camera_info(device_address)
+    except (asyncio.TimeoutError, TimeoutError, OSError) as ex:
         raise ConfigEntryNotReady(f"Timeout while connecting to {device_address}") from ex
     async_add_entities(
         [
