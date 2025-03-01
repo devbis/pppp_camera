@@ -11,7 +11,7 @@ from aiohttp import web
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.util import uuid
 import aiopppp
-import aiopppp.types
+import voluptuous as vol
 
 from homeassistant.components.camera import Camera
 from homeassistant.config_entries import ConfigEntry
@@ -25,15 +25,21 @@ from homeassistant.const import (
     CONF_IP_ADDRESS, Platform,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import (
-    async_aiohttp_proxy_web,
-    async_get_clientsession,
-)
+from homeassistant.helpers import config_validation as cv, entity_platform
+# from homeassistant.helpers.aiohttp_client import (
+#     async_aiohttp_proxy_web,
+#     async_get_clientsession,
+# )
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.httpx_client import get_async_client
+# from homeassistant.helpers.httpx_client import get_async_client
 
-from .const import DOMAIN, LOGGER
+from .const import (
+    DOMAIN, LOGGER, SERVICE_PTZ, DIR_LEFT, DIR_RIGHT, DIR_UP, DIR_DOWN, ATTR_PAN, ATTR_TILT,
+    # ATTR_MOVE_MODE, RELATIVE_MOVE, CONTINUOUS_MOVE, ABSOLUTE_MOVE, GOTOPRESET_MOVE, STOP_MOVE,
+    # ATTR_CONTINUOUS_DURATION, ATTR_PRESET,
+    SERVICE_REBOOT,
+)
 
 TIMEOUT = 30
 # BUFFER_SIZE = 102400
@@ -66,10 +72,41 @@ async def async_setup_entry(
     """Set up a PPPP Camera based on a config entry."""
 
     device_address = entry.options[CONF_IP_ADDRESS]
+
     try:
-        camera_info, camera_properties = await get_camera_info(device_address)
+        with aiopppp.Device(ip_address=device_address) as device:
+            camera_info, camera_properties = device.descriptor, device.properties
     except (asyncio.TimeoutError, TimeoutError, OSError) as ex:
         raise ConfigEntryNotReady(f"Timeout while connecting to {device_address}") from ex
+
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        SERVICE_PTZ,
+        {
+            vol.Optional(ATTR_PAN): vol.In([DIR_LEFT, DIR_RIGHT]),
+            vol.Optional(ATTR_TILT): vol.In([DIR_UP, DIR_DOWN]),
+            # vol.Optional(ATTR_ZOOM): vol.In([ZOOM_OUT, ZOOM_IN]),
+            # vol.Optional(ATTR_DISTANCE, default=0.1): cv.small_float,
+            # vol.Optional(ATTR_SPEED, default=0.5): cv.small_float,
+            # vol.Optional(ATTR_MOVE_MODE, default=RELATIVE_MOVE): vol.In(
+            #     [
+            #         CONTINUOUS_MOVE,
+            #         RELATIVE_MOVE,
+            #         ABSOLUTE_MOVE,
+            #         GOTOPRESET_MOVE,
+            #         STOP_MOVE,
+            #     ]
+            # ),
+            # vol.Optional(ATTR_CONTINUOUS_DURATION, default=0.5): cv.small_float,
+            # vol.Optional(ATTR_PRESET, default="0"): cv.string,
+        },
+        "async_perform_ptz",
+    )
+    platform.async_register_entity_service(
+        SERVICE_REBOOT,
+        None,
+        "async_perform_reboot",
+    )
     async_add_entities(
         [
             PPPPCamera(
@@ -161,11 +198,13 @@ class PPPPCamera(Camera):
     @cached_property
     def use_stream_for_stills(self) -> bool:
         """Whether to use stream to generate stills."""
+        LOGGER.error('use_stream_for_stills = True')
         return True
 
     async def stream_source(self) -> str:
         """Return the stream source."""
 
+        LOGGER.error('getting stream_source()')
         return f'pppp://{self._ip_address}'
         # url = URL(self._mjpeg_url)
         # if self._username:
@@ -328,6 +367,8 @@ class PPPPCamera(Camera):
                     frame = await asyncio.wait_for(frame_buffer.get(), timeout=10)
                 except asyncio.TimeoutError:
                     break
+                if not frame:
+                    break
                 header = f'--{boundary}\r\n'.encode()
                 header += b'Content-Length: %d\r\n' % len(frame.data)
                 header += b'Content-Type: image/jpeg\r\n\r\n'
@@ -340,9 +381,10 @@ class PPPPCamera(Camera):
         finally:
             LOGGER.info('%s camera stream closed', self.name)
             self._camera_found.clear()
-            await asyncio.shield(self._camera_session.stop_video())
-            self._camera_session.stop()
-            self._camera_session = None
+            if self._camera_session:
+                await asyncio.shield(self._camera_session.stop_video())
+                self._camera_session.stop()
+                self._camera_session = None
             return response
 
         # # aiohttp don't support DigestAuth so we use httpx
@@ -354,3 +396,38 @@ class PPPPCamera(Camera):
         # stream_coro = websession.get(self._mjpeg_url, auth=self._auth)
         #
         # return await async_aiohttp_proxy_web(self.hass, request, stream_coro)
+
+    async def async_perform_ptz(
+        self,
+        # distance,
+        # speed,
+        # move_mode,
+        # continuous_duration,
+        # preset,
+        pan=None,
+        tilt=None,
+        # zoom=None,
+    ) -> None:
+        """Perform a PTZ action on the camera."""
+        if pan:
+            await self._camera_session.step_rotate(pan)
+        elif tilt:
+            await self._camera_session.step_tilt(tilt)
+
+        # await self.device.async_perform_ptz(
+        #     self.profile,
+        #     distance,
+        #     speed,
+        #     move_mode,
+        #     continuous_duration,
+        #     preset,
+        #     pan,
+        #     tilt,
+        #     zoom,
+        # )
+
+    async def async_perform_reboot(
+            self,
+    ) -> None:
+        """Perform a PTZ action on the camera."""
+        await self._camera_session.reboot()
