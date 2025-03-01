@@ -15,7 +15,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.const import (
-    CONF_NAME,
+    # CONF_NAME,
     CONF_IP_ADDRESS,
     CONF_PASSWORD,
     CONF_USERNAME,
@@ -42,48 +42,10 @@ def async_get_schema(
             CONF_PASSWORD,
             description={"suggested_value": defaults.get(CONF_PASSWORD)},
         ): str,
-        vol.Optional(CONF_NAME, default=defaults.get(CONF_NAME)): str,
     }
 
     return vol.Schema(schema)
 
-
-# def validate_url(
-#     address: str,
-#     # username: str | None,
-#     # password: str,
-#     # verify_ssl: bool,
-#     # authentication: str = HTTP_BASIC_AUTHENTICATION,
-# ) -> str:
-#     """Test if the given setting works as expected."""
-#     auth: HTTPDigestAuth | HTTPBasicAuth | None = None
-#     if username and password:
-#         if authentication == HTTP_DIGEST_AUTHENTICATION:
-#             auth = HTTPDigestAuth(username, password)
-#         else:
-#             auth = HTTPBasicAuth(username, password)
-#
-#     response = requests.get(
-#         url,
-#         auth=auth,
-#         stream=True,
-#         timeout=10,
-#         verify=verify_ssl,
-#     )
-#
-#     if response.status_code == HTTPStatus.UNAUTHORIZED:
-#         # If unauthorized, try again using digest auth
-#         if authentication == HTTP_BASIC_AUTHENTICATION:
-#             return validate_url(
-#                 url, username, password, verify_ssl, HTTP_DIGEST_AUTHENTICATION
-#             )
-#         raise InvalidAuth
-#
-#     response.raise_for_status()
-#     response.close()
-#
-#     return authentication
-#
 
 async def async_validate_input(
     hass: HomeAssistant, user_input: dict[str, Any]
@@ -100,7 +62,7 @@ async def async_validate_input(
         LOGGER.exception("Cannot connect to %s", user_input[CONF_IP_ADDRESS])
         errors[field] = "cannot_connect"
 
-    return (errors, camera_info.dev_id.dev_id)
+    return errors, camera_info.dev_id.dev_id
 
 
 class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
