@@ -7,77 +7,66 @@ from collections.abc import AsyncIterator
 from contextlib import suppress
 from functools import cached_property
 
-from aiohttp import web
-from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.util import uuid
 import aiopppp
 import voluptuous as vol
-
+from aiohttp import web
+from aiopppp import NotConnectedError
 from homeassistant.components.camera import Camera
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    # CONF_AUTHENTICATION,
-    CONF_PASSWORD,
-    CONF_USERNAME,
     # CONF_VERIFY_SSL,
     # HTTP_BASIC_AUTHENTICATION,
     # HTTP_DIGEST_AUTHENTICATION,
-    CONF_IP_ADDRESS, Platform,
+    # CONF_IP_ADDRESS,
+    # CONF_HOST,
+    # CONF_AUTHENTICATION,
+    # CONF_PASSWORD,
+    # CONF_USERNAME,
+    Platform,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv, entity_platform
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_platform
+
 # from homeassistant.helpers.aiohttp_client import (
 #     async_aiohttp_proxy_web,
 #     async_get_clientsession,
 # )
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-# from homeassistant.helpers.httpx_client import get_async_client
+from homeassistant.util import uuid
 
+# from homeassistant.helpers.httpx_client import get_async_client
 from .const import (
-    DOMAIN, LOGGER, SERVICE_PTZ, DIR_LEFT, DIR_RIGHT, DIR_UP, DIR_DOWN, ATTR_PAN, ATTR_TILT,
+    ATTR_PAN,
+    ATTR_TILT,
+    DIR_DOWN,
+    DIR_LEFT,
+    DIR_RIGHT,
+    DIR_UP,
+    DOMAIN,
+    LOGGER,
+    SERVICE_PTZ,
     # ATTR_MOVE_MODE, RELATIVE_MOVE, CONTINUOUS_MOVE, ABSOLUTE_MOVE, GOTOPRESET_MOVE, STOP_MOVE,
     # ATTR_CONTINUOUS_DURATION, ATTR_PRESET,
     SERVICE_REBOOT,
 )
+from .device import PPPPDevice
+from .entity import PPPPBaseEntity
 
 TIMEOUT = 30
 # BUFFER_SIZE = 102400
 
 
-async def discover_camera(ip_address: str) -> aiopppp.types.Device:
-    result = await aiopppp.connect(ip_address, timeout=TIMEOUT)
-    LOGGER.info('Found %s', result and result.dev_id)
-    return result
-
-
-async def get_camera_info(ip_address: str) -> tuple[aiopppp.Device, dict]:
-    camera_info = await discover_camera(ip_address)
-    session = aiopppp.make_session(camera_info, on_device_lost=None)
-    session.start()
-    try:
-        await asyncio.wait_for(session.device_is_ready.wait(), timeout=15)
-        # {'tz': -3, 'time': 3949367342, 'icut': 0, 'batValue': 90, 'batStatus': 1,
-        #  'sysver': 'HQLS_HQT66DP_20240925 11:06:42', 'mcuver': '1.1.1.1', 'sensor': 'GC0329', 'isShow4KMenu': 0,
-        #  'isShowIcutAuto': 1, 'rotmir': 0, 'signal': 100, 'lamp': 1}
-        return camera_info, session.dev_properties
-    finally:
-        session.stop()
-
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up a PPPP Camera based on a config entry."""
 
-    device_address = entry.options[CONF_IP_ADDRESS]
-
-    try:
-        with aiopppp.Device(ip_address=device_address) as device:
-            camera_info, camera_properties = device.descriptor, device.properties
-    except (asyncio.TimeoutError, TimeoutError, OSError) as ex:
-        raise ConfigEntryNotReady(f"Timeout while connecting to {device_address}") from ex
+    device: PPPPDevice = hass.data[DOMAIN][config_entry.unique_id]
 
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
@@ -107,27 +96,9 @@ async def async_setup_entry(
         None,
         "async_perform_reboot",
     )
-    async_add_entities(
-        [
-            PPPPCamera(
-                name=camera_info.dev_id.dev_id,
-                username=entry.options.get(CONF_USERNAME),
-                password=entry.options.get(CONF_PASSWORD),
-                ip_address=device_address,
-                # still_image_url=entry.options.get(CONF_STILL_IMAGE_URL),
-                # verify_ssl=entry.options[CONF_VERIFY_SSL],
-                unique_id=f'{camera_info.dev_id.dev_id}_{Platform.CAMERA.value}',
-                device_info=DeviceInfo(
-                    name=entry.title,
-                    identifiers={(DOMAIN, entry.unique_id), },
-                    hw_version=camera_properties.get('mcuver'),
-                    sw_version=camera_properties.get('sysver'),
-                    model=camera_info.dev_id.dev_id,
-                    model_id=camera_properties.get('sensor'),
-                ),
-            )
-        ]
-    )
+
+    async_add_entities([PPPPCamera(device)])
+
 
 async def async_extract_image_from_mjpeg(stream: AsyncIterator[bytes]) -> bytes | None:
     """Take in a MJPEG stream object, return the jpg from it."""
@@ -150,35 +121,31 @@ async def async_extract_image_from_mjpeg(stream: AsyncIterator[bytes]) -> bytes 
     return None
 
 
-class PPPPCamera(Camera):
+class PPPPCamera(PPPPBaseEntity, Camera):
     """An implementation of a PPPP camera."""
     _attr_is_streaming = True
 
-    def __init__(
-        self,
-        *,
-        name: str | None = None,
-        ip_address: str,
-        # still_image_url: str | None,
-        # authentication: str | None = None,
-        username: str | None = None,
-        password: str = "",
-        # verify_ssl: bool = True,
-        unique_id: str | None = None,
-        device_info: DeviceInfo | None = None,
-    ) -> None:
-        """Initialize a MJPEG camera."""
-        super().__init__()
-        self._attr_name = name
+    def __init__(self, device: PPPPDevice) -> None:
+    #     self,
+    #     *,
+    #     name: str | None = None,
+    #     ip_address: str,
+    #     # still_image_url: str | None,
+    #     # authentication: str | None = None,
+    #     username: str | None = None,
+    #     password: str = "",
+    #     # verify_ssl: bool = True,
+    #     unique_id: str | None = None,
+    #     device_info: DeviceInfo | None = None,
+    # ) -> None:
+        """Initialize a PPPP camera."""
+        PPPPBaseEntity.__init__(self, device)
+        Camera.__init__(self)
+
+        self._attr_name = self.device.dev_id
         # self._authentication = authentication
-        self._username = username
-        self._password = password
-        self._ip_address = ip_address
-        self._discovery = None
-        self._camera_device = None
-        self._camera_session = None
+        # self._camera_session = None
         self._camera_found = asyncio.Event()
-        self._discovery_task = None
         # self._still_image_url = still_image_url
 
         # self._auth = None
@@ -190,22 +157,21 @@ class PPPPCamera(Camera):
         #     self._auth = aiohttp.BasicAuth(self._username, password=self._password)
         # self._verify_ssl = verify_ssl
 
-        if unique_id is not None:
-            self._attr_unique_id = unique_id
-        if device_info is not None:
-            self._attr_device_info = device_info
+        # if unique_id is not None:
+        self._attr_unique_id = self.device.dev_id
+        # if device_info is not None:
+        #     self._attr_device_info = device_info
 
     @cached_property
     def use_stream_for_stills(self) -> bool:
         """Whether to use stream to generate stills."""
-        LOGGER.error('use_stream_for_stills = True')
-        return True
+        return False
 
     async def stream_source(self) -> str:
         """Return the stream source."""
 
         LOGGER.error('getting stream_source()')
-        return f'pppp://{self._ip_address}'
+        return f'pppp://{self.device.host}'
         # url = URL(self._mjpeg_url)
         # if self._username:
         #     url = url.with_user(self._username)
@@ -219,19 +185,15 @@ class PPPPCamera(Camera):
         """Return a still image response from the camera."""
         LOGGER.info('Getting camera image')
         await self.instantiate_session()
-
-        await self._camera_session.device_is_ready.wait()
-        video_streaming = self._camera_session.video_requested
+        video_streaming = self.device.device.is_video_requested
 
         if not video_streaming:
-            await self._camera_session.start_video()
-        frame_buffer = self._camera_session.frame_buffer
+            await self.device.device.start_video()
         LOGGER.info('Getting camera image')
-        image = await frame_buffer.get()
-        LOGGER.info('Getting camera image: %s', image)
+        image_frame = await self.device.device.get_video_frame()
         if not video_streaming:
-            await self._camera_session.stop_video()
-        return image
+            await self.device.device.stop_video()
+        return image_frame and image_frame.data
 
         # response = web.StreamResponse()
         # boundary = '--frame' + uuid.random_uuid_hex()
@@ -312,46 +274,34 @@ class PPPPCamera(Camera):
     #                     await response.write(chunk)
     #     return response
 
-    def on_device_found(self, camera: aiopppp.types.Device):
-        LOGGER.info('Device %s found', camera.dev_id)
-        self._camera_device = camera
-        self._camera_found.set()
+    # def on_device_found(self, camera: aiopppp.types.Device):
+    #     LOGGER.info('Device %s found', camera.dev_id)
+    #     # self._camera_device = camera
+    #     self._camera_found.set()
 
-    def on_device_disconnect(self, camera: aiopppp.types.Device):
-        LOGGER.info('Device %s disconnected', camera.dev_id)
-        self._camera_found.clear()
-        if self._camera_session:
-            self._camera_session = None
-        if self._discovery_task:
-            self._discovery_task.cancel()
-            with suppress(asyncio.CancelledError):
-                self._discovery_task.result()
-            self._discovery_task = None
+    # def on_device_disconnect(self, camera: aiopppp.types.Device):
+    #     LOGGER.info('Device %s disconnected', camera.dev_id)
+    #     self._camera_found.clear()
+    #     if self._camera_session:
+    #         self._camera_session = None
+    #     if self._discovery_task:
+    #         self._discovery_task.cancel()
+    #         with suppress(asyncio.CancelledError):
+    #             self._discovery_task.result()
+    #         self._discovery_task = None
 
     async def instantiate_session(self):
-        if not self._discovery:
-            self._discovery = aiopppp.Discovery(remote_addr=self._ip_address)
-        if not self._discovery_task:
-            self._discovery_task = asyncio.create_task(self._discovery.discover(self.on_device_found))
-        if not self._camera_session:
-            await self._camera_found.wait()
-            self._camera_session = aiopppp.make_session(
-                self._camera_device,
-                login=self._username,
-                password=self._password,
-                on_device_lost=self.on_device_disconnect,
-            )
-            self._camera_session.start()
+        if not self.device.device.is_connected:
+            await self.device.device.connect()
 
     async def handle_async_mjpeg_stream(
         self, request: web.Request
     ) -> web.StreamResponse | None:
         """Generate an HTTP MJPEG stream from the camera."""
         await self.instantiate_session()
-        await self._camera_session.device_is_ready.wait()
-
-        if not self._camera_session.video_requested:
-            await self._camera_session.start_video()
+        LOGGER.info(f'{self.device.device.is_video_requested=}')
+        if not self.device.device.is_video_requested:
+            await self.device.device.start_video()
 
         response = web.StreamResponse()
         boundary = '--frame' + uuid.random_uuid_hex()
@@ -359,15 +309,15 @@ class PPPPCamera(Camera):
         response.content_length = 1000000000000
         await response.prepare(request)
 
-        frame_buffer = self._camera_session.frame_buffer
-
         try:
             while True:
                 try:
-                    frame = await asyncio.wait_for(frame_buffer.get(), timeout=10)
-                except asyncio.TimeoutError:
+                    frame = await asyncio.wait_for(self.device.device.get_video_frame(), timeout=10)
+                except (asyncio.TimeoutError, NotConnectedError) as err:
+                    LOGGER.warning('Error getting video frame: %s %s', err, type(err))
                     break
                 if not frame:
+                    LOGGER.warning('Error getting video frame: empty frame')
                     break
                 header = f'--{boundary}\r\n'.encode()
                 header += b'Content-Length: %d\r\n' % len(frame.data)
@@ -381,10 +331,7 @@ class PPPPCamera(Camera):
         finally:
             LOGGER.info('%s camera stream closed', self.name)
             self._camera_found.clear()
-            if self._camera_session:
-                await asyncio.shield(self._camera_session.stop_video())
-                self._camera_session.stop()
-                self._camera_session = None
+            await self.device.device.close()
             return response
 
         # # aiohttp don't support DigestAuth so we use httpx
@@ -410,9 +357,9 @@ class PPPPCamera(Camera):
     ) -> None:
         """Perform a PTZ action on the camera."""
         if pan:
-            await self._camera_session.step_rotate(pan)
+            await self.device.device.session.step_rotate(pan)
         elif tilt:
-            await self._camera_session.step_tilt(tilt)
+            await self.device.device.session.step_tilt(tilt)
 
         # await self.device.async_perform_ptz(
         #     self.profile,
@@ -430,4 +377,4 @@ class PPPPCamera(Camera):
             self,
     ) -> None:
         """Perform a PTZ action on the camera."""
-        await self._camera_session.reboot()
+        await self.device.device.session.reboot()
