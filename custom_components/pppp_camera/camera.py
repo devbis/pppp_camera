@@ -133,7 +133,7 @@ class PPPPCamera(PPPPBaseEntity, Camera):
     ) -> bytes | None:
         """Return a still image response from the camera."""
         LOGGER.info('Getting camera image')
-        await self.instantiate_session()
+        was_connected = await self.instantiate_session()
         video_streaming = self.device.device.is_video_requested
 
         if not video_streaming:
@@ -142,17 +142,21 @@ class PPPPCamera(PPPPBaseEntity, Camera):
         image_frame = await self.device.device.get_video_frame()
         if not video_streaming:
             await self.device.device.stop_video()
+        if was_connected:
+            await self.device.device.close()
         return image_frame and image_frame.data
 
     async def instantiate_session(self):
-        if not self.device.device.is_connected:
+        is_connected = self.device.device.is_connected
+        if not is_connected:
             await self.device.device.connect()
+        return not is_connected
 
     async def handle_async_mjpeg_stream(
         self, request: web.Request
     ) -> web.StreamResponse | None:
         """Generate an HTTP MJPEG stream from the camera."""
-        await self.instantiate_session()
+        was_connected = await self.instantiate_session()
         LOGGER.info(f'{self.device.device.is_video_requested=}')
         if not self.device.device.is_video_requested:
             await self.device.device.start_video()
@@ -185,7 +189,8 @@ class PPPPCamera(PPPPBaseEntity, Camera):
         finally:
             LOGGER.info('%s camera stream closed', self.name)
             self._camera_found.clear()
-            await self.device.device.close()
+            if was_connected:
+                await self.device.device.close()
             return response
 
     async def async_perform_ptz(
