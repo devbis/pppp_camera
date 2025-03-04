@@ -113,10 +113,8 @@ class PPPPCamera(PPPPBaseEntity, Camera):
         Camera.__init__(self)
 
         self._attr_name = self.device.dev_id
-        self._attr_unique_id = self.device.dev_id
-
+        self._attr_unique_id = f'{self.device.dev_id}_camera'
         self._camera_found = asyncio.Event()
-
 
     @cached_property
     def use_stream_for_stills(self) -> bool:

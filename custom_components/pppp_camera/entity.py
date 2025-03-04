@@ -28,6 +28,6 @@ class PPPPBaseEntity(Entity):
             identifiers={(DOMAIN, self.device.dev_id)},
             hw_version=camera_properties.get('mcuver'),
             sw_version=camera_properties.get('sysver'),
-            model=self.device.device.descriptor.dev_id.dev_id,
+            model=self.device.dev_id,
             model_id=camera_properties.get('sensor'),
         )

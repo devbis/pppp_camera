@@ -92,6 +92,7 @@ class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
 
                 # Storing data in option, to allow for changing them later
                 # using an options flow.
+                await self.async_set_unique_id(dev_id, raise_on_progress=False)
                 return self.async_create_entry(
                     title=dev_id,
                     data={},
