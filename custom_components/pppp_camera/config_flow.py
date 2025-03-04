@@ -99,8 +99,6 @@ class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
                         CONF_HOST: user_input[CONF_HOST],
                         CONF_USERNAME: user_input.get(CONF_USERNAME),
                         CONF_PASSWORD: user_input.get(CONF_PASSWORD),
-                        # CONF_STILL_IMAGE_URL: user_input.get(CONF_STILL_IMAGE_URL),
-                        # CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
                     },
                 )
         else:
@@ -139,8 +137,6 @@ class PPPPCameraOptionsFlowHandler(OptionsFlow):
                             CONF_HOST: user_input[CONF_HOST],
                             CONF_USERNAME: user_input.get(CONF_USERNAME),
                             CONF_PASSWORD: user_input.get(CONF_PASSWORD),
-                            # CONF_STILL_IMAGE_URL: user_input.get(CONF_STILL_IMAGE_URL),
-                            # CONF_VERIFY_SSL: user_input[CONF_VERIFY_SSL],
                         },
                     )
         else:

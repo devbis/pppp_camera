@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 
 from .const import DOMAIN
@@ -8,7 +8,7 @@ from .device import PPPPDevice
 
 
 class PPPPBaseEntity(Entity):
-    """Base class common to all ONVIF entities."""
+    """Base class common to all PPPP entities."""
 
     def __init__(self, device: PPPPDevice) -> None:
         """Initialize the PPPP entity."""
@@ -25,7 +25,6 @@ class PPPPBaseEntity(Entity):
 
         camera_properties = self.device.device.properties
         return DeviceInfo(
-            # connections=connections,
             identifiers={(DOMAIN, self.device.dev_id)},
             hw_version=camera_properties.get('mcuver'),
             sw_version=camera_properties.get('sysver'),
