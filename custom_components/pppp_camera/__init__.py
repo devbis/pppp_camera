@@ -1,36 +1,23 @@
-"""The MJPEG IP Camera integration."""
+"""The PPPP IP Camera integration."""
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
-# from homeassistant.helpers.typing import ConfigType
 
-from .camera import PPPPCamera
 from .button import RebootButton
+from .camera import PPPPCamera
 from .const import DOMAIN, PLATFORMS
 
-# from .const import CONF_MJPEG_URL, CONF_STILL_IMAGE_URL, DOMAIN, PLATFORMS
-# from .util import filter_urllib3_logging
-
 __all__ = [
-    # "CONF_MJPEG_URL",
-    # "CONF_STILL_IMAGE_URL",
     "PPPPCamera",
     "RebootButton",
-    # "filter_urllib3_logging",
 ]
 
 from .device import PPPPDevice
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
-
-
-# async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-#     """Set up the PPPP Camera integration."""
-#     # filter_urllib3_logging()
-#     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
@@ -50,7 +37,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     hass.data[DOMAIN][config_entry.unique_id] = device
 
     device.platforms = [Platform.BUTTON, Platform.CAMERA]
-    # device.platforms = [Platform.CAMERA]
 
     await hass.config_entries.async_forward_entry_setups(config_entry, device.platforms)
 

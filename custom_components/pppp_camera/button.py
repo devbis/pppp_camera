@@ -1,4 +1,4 @@
-"""ONVIF Buttons."""
+"""PPPP Buttons."""
 
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.config_entries import ConfigEntry
@@ -22,7 +22,7 @@ async def async_setup_entry(
 
 
 class RebootButton(PPPPBaseEntity, ButtonEntity):
-    """Defines a ONVIF reboot button."""
+    """Defines a PPPP reboot button."""
 
     _attr_device_class = ButtonDeviceClass.RESTART
     _attr_entity_category = EntityCategory.CONFIG
@@ -43,7 +43,7 @@ class RebootButton(PPPPBaseEntity, ButtonEntity):
 
 
 # class SetSystemDateAndTimeButton(PPPPBaseEntity, ButtonEntity):
-#     """Defines a ONVIF SetSystemDateAndTime button."""
+#     """Defines a PPPP SetSystemDateAndTime button."""
 #
 #     _attr_entity_category = EntityCategory.CONFIG
 #
