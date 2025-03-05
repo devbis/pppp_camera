@@ -1,4 +1,4 @@
-# pppp Camera Component for Home Assistant
+# PPPP Camera Component for Home Assistant
 
 ## Overview
 
@@ -11,6 +11,9 @@ These cameras typically use the **Peer-to-Peer protocol** for communication, and
 - Live streaming via aiopppp
 - Snapshot support
 - Integration with Home Assistant dashboards
+- (TBD) Pan and tilt movements
+- (TBD) White lights and IR lights control
+- (TBD) Sound streaming
 
 ## Tested camera prefixes
 
@@ -20,8 +23,7 @@ These cameras typically use the **Peer-to-Peer protocol** for communication, and
 
 ### Prerequisites
 
-- Home Assistant installed and running
-- Python 3.9+
+- Home Assistant installed and running. Tested on version 2025.2
 
 ### Installation
 1. HACS > Integrations > Custom Repositories
@@ -32,7 +34,8 @@ Or manually copy pppp_camera folder to custom_components folder in your config f
 
 ## Configuration
 
-Add component and insert camera IP address
+Add component and insert camera IP address. If username and passwords are blank it will use default values for 
+authentication: `admin:6666`
 
 ## Usage
 
@@ -44,7 +47,7 @@ Add component and insert camera IP address
 
 - **Camera not connecting?** Ensure IP is correct and phone application is not connected. Only one client can connect.
 - **No video stream?** Sometimes camera doesn't start streaming. Reboot it.  
-- 
+
 ## Contributing
 
 Contributions are welcome! Feel free to submit issues or pull requests to improve the integration.
