@@ -37,6 +37,9 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     hass.data[DOMAIN][config_entry.unique_id] = device
 
     device.platforms = [Platform.BUTTON, Platform.CAMERA]
+    if 'lamp' in device.device.properties:
+        # idk if this is the right way to find the presence of a lamp/ir
+        device.platforms += [Platform.SWITCH]
 
     await hass.config_entries.async_forward_entry_setups(config_entry, device.platforms)
 

@@ -114,7 +114,6 @@ class PPPPCamera(PPPPBaseEntity, Camera):
 
         self._attr_name = self.device.dev_id
         self._attr_unique_id = f'{self.device.dev_id}_camera'
-        self._camera_found = asyncio.Event()
 
     @cached_property
     def use_stream_for_stills(self) -> bool:
@@ -131,65 +130,54 @@ class PPPPCamera(PPPPBaseEntity, Camera):
     ) -> bytes | None:
         """Return a still image response from the camera."""
         LOGGER.info('Getting camera image')
-        was_connected = await self.instantiate_session()
-        video_streaming = self.device.device.is_video_requested
+        async with self.device.ensure_connected():
+            video_streaming = self.device.device.is_video_requested
 
-        if not video_streaming:
-            await self.device.device.start_video()
-        LOGGER.info('Getting camera image')
-        image_frame = await self.device.device.get_video_frame()
-        if not video_streaming:
-            await self.device.device.stop_video()
-        if was_connected:
-            await self.device.device.close()
+            if not video_streaming:
+                await self.device.device.start_video()
+            LOGGER.info('Getting camera image')
+            image_frame = await self.device.device.get_video_frame()
+            if not video_streaming:
+                await self.device.device.stop_video()
         return image_frame and image_frame.data
-
-    async def instantiate_session(self):
-        is_connected = self.device.device.is_connected
-        if not is_connected:
-            await self.device.device.connect()
-        return not is_connected
 
     async def handle_async_mjpeg_stream(
         self, request: web.Request
     ) -> web.StreamResponse | None:
         """Generate an HTTP MJPEG stream from the camera."""
-        was_connected = await self.instantiate_session()
-        LOGGER.info(f'{self.device.device.is_video_requested=}')
-        if not self.device.device.is_video_requested:
-            await self.device.device.start_video()
+        async with self.device.ensure_connected():
+            LOGGER.info(f'{self.device.device.is_video_requested=}')
+            if not self.device.device.is_video_requested:
+                await self.device.device.start_video()
 
-        response = web.StreamResponse()
-        boundary = '--frame' + uuid.random_uuid_hex()
-        response.content_type = f'multipart/x-mixed-replace; boundary={boundary}'
-        response.content_length = 1000000000000
-        await response.prepare(request)
+            response = web.StreamResponse()
+            boundary = '--frame' + uuid.random_uuid_hex()
+            response.content_type = f'multipart/x-mixed-replace; boundary={boundary}'
+            response.content_length = 1000000000000
+            await response.prepare(request)
 
-        try:
-            while True:
-                try:
-                    frame = await asyncio.wait_for(self.device.device.get_video_frame(), timeout=10)
-                except (asyncio.TimeoutError, aiopppp.NotConnectedError) as err:
-                    LOGGER.warning('Error getting video frame: %s %s', err, type(err))
-                    break
-                if not frame:
-                    LOGGER.warning('Error getting video frame: empty frame')
-                    break
-                header = f'--{boundary}\r\n'.encode()
-                header += b'Content-Length: %d\r\n' % len(frame.data)
-                header += b'Content-Type: image/jpeg\r\n\r\n'
+            try:
+                while True:
+                    try:
+                        frame = await asyncio.wait_for(self.device.device.get_video_frame(), timeout=10)
+                    except (asyncio.TimeoutError, aiopppp.NotConnectedError) as err:
+                        LOGGER.warning('Error getting video frame: %s %s', err, type(err))
+                        break
+                    if not frame:
+                        LOGGER.warning('Error getting video frame: empty frame')
+                        break
+                    header = f'--{boundary}\r\n'.encode()
+                    header += b'Content-Length: %d\r\n' % len(frame.data)
+                    header += b'Content-Type: image/jpeg\r\n\r\n'
 
-                try:
-                    await response.write(header)
-                    await response.write(frame.data)
-                except (TimeoutError, ConnectionResetError):
-                    break
-        finally:
-            LOGGER.info('%s camera stream closed', self.name)
-            self._camera_found.clear()
-            if was_connected:
-                await self.device.device.close()
-            return response
+                    try:
+                        await response.write(header)
+                        await response.write(frame.data)
+                    except (TimeoutError, ConnectionResetError):
+                        break
+            finally:
+                LOGGER.info('%s camera stream closed', self.name)
+                return response
 
     async def async_perform_ptz(
         self,
@@ -203,10 +191,11 @@ class PPPPCamera(PPPPBaseEntity, Camera):
         # zoom=None,
     ) -> None:
         """Perform a PTZ action on the camera."""
-        if pan:
-            await self.device.device.session.step_rotate(pan)
-        elif tilt:
-            await self.device.device.session.step_tilt(tilt)
+        async with self.device.ensure_connected():
+            if pan:
+                await self.device.device.session.step_rotate(pan)
+            elif tilt:
+                await self.device.device.session.step_tilt(tilt)
 
         # await self.device.async_perform_ptz(
         #     self.profile,
