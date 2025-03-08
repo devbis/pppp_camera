@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import aiopppp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -27,6 +29,7 @@ class PPPPDevice:
         self.info: dict = {}
         self.platforms: list[Platform] = []
 
+        self._connected_num = 0
         self._dt_diff_seconds: float = 0
 
     async def _async_update_listener(
@@ -56,6 +59,22 @@ class PPPPDevice:
         """Return the dev_id of this device."""
         return self.device.descriptor.dev_id.dev_id
 
+    async def connect(self):
+        """Connect to the device."""
+        self._connected_num += 1
+        if not self.device.is_connected:
+            await self.device.connect()
+
+    async def close(self):
+        """Close the connection to the device."""
+        if self.device._session is None or not self._connected_num:
+            self._connected_num = 0
+            return
+
+        self._connected_num -= 1
+        if self._connected_num == 0:
+            await self.device.close()
+
     async def async_setup(self) -> None:
         """Set up the device."""
         self.device = get_device(
@@ -65,9 +84,8 @@ class PPPPDevice:
             password=self.config_entry.options[CONF_PASSWORD],
         )
 
-        await self.device.connect()
-        self.info = self.device.properties
-        await self.device.close()
+        async with self.ensure_connected():
+            self.info = self.device.properties
 
         self.config_entry.async_on_unload(
             self.config_entry.add_update_listener(self._async_update_listener)
@@ -76,6 +94,35 @@ class PPPPDevice:
     async def async_stop(self, event=None):
         """Shut it all down."""
         await self.device.close()
+
+    async def async_white_light_on(self, data):
+        """Turn on the white light."""
+        async with self.ensure_connected():
+            await self.device.session.toggle_whitelight(1)
+
+    async def async_white_light_off(self, data):
+        """Turn on the white light."""
+        async with self.ensure_connected():
+            await self.device.session.toggle_whitelight(0)
+
+    async def async_ir_light_on(self, data):
+        """Turn on the white light."""
+        async with self.ensure_connected():
+            await self.device.session.toggle_ir(1)
+
+    async def async_ir_light_off(self, data):
+        """Turn on the white light."""
+        async with self.ensure_connected():
+            await self.device.session.toggle_ir(0)
+
+    @contextlib.asynccontextmanager
+    async def ensure_connected(self):
+        """Ensure the device is connected."""
+        await self.connect()
+        try:
+            yield self
+        finally:
+            await self.close()
 
     async def async_manually_set_date_and_time(self) -> None:
         """Set Date and Time Manually using SetSystemDateAndTime command."""
