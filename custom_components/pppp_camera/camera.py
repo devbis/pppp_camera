@@ -195,7 +195,7 @@ class PPPPCamera(PPPPBaseEntity, Camera):
             if pan:
                 await self.device.device.session.step_rotate(pan)
             elif tilt:
-                await self.device.device.session.step_tilt(tilt)
+                await self.device.device.session.step_rotate(tilt)
 
         # await self.device.async_perform_ptz(
         #     self.profile,
