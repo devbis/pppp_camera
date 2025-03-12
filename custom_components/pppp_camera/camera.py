@@ -164,7 +164,7 @@ class PPPPCamera(PPPPBaseEntity, Camera):
                         LOGGER.warning('Error getting video frame: Timeout')
                         break
                     except aiopppp.NotConnectedError as err:
-                        LOGGER.warning('Error getting video frame: %s %s', err)
+                        LOGGER.warning('Error getting video frame: %s', err)
                         break
                     if not frame:
                         LOGGER.warning('Error getting video frame: empty frame')
