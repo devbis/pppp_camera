@@ -76,6 +76,18 @@ ptz:
   data_down:
     tilt: DOWN
     entity_id: camera.dgok_123456_xxxxx
+
+shortcuts:
+  - name: White Light
+    icon: mdi:lightbulb-on
+    service: switch.toggle
+    service_data:
+      entity_id: switch.dgok_123456_xxxxx_white_lamp
+  - name: IR lamp
+    icon: mdi:weather-night
+    service: switch.toggle
+    service_data:
+      entity_id: switch.dgok_123456_xxxxx_ir_lamp
 ```
 
 ## Troubleshooting
