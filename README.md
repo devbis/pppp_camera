@@ -50,8 +50,33 @@ action: pppp_camera.ptz
 data:
   pan: LEFT
 target:
-  device_id: 02386a900cf4dc1df7ccc22c658b5e50
-  ```
+  entity_id: camera.dgok_123456_xxxxx
+```
+
+
+## WebRTC component configuration example:
+
+Component project page: https://github.com/AlexxIT/WebRTC
+
+```yaml
+type: custom:webrtc-camera
+entity: camera.dgok_123456_xxxxx
+media: video
+ptz:
+  service: pppp_camera.ptz
+  data_left:
+    pan: LEFT
+    entity_id: camera.dgok_123456_xxxxx
+  data_right:
+    pan: RIGHT
+    entity_id: camera.dgok_123456_xxxxx
+  data_up:
+    tilt: UP
+    entity_id: camera.dgok_123456_xxxxx
+  data_down:
+    tilt: DOWN
+    entity_id: camera.dgok_123456_xxxxx
+```
 
 ## Troubleshooting
 
