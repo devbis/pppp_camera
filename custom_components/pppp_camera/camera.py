@@ -160,8 +160,11 @@ class PPPPCamera(PPPPBaseEntity, Camera):
                 while True:
                     try:
                         frame = await asyncio.wait_for(self.device.device.get_video_frame(), timeout=10)
-                    except (asyncio.TimeoutError, aiopppp.NotConnectedError) as err:
-                        LOGGER.warning('Error getting video frame: %s %s', err, type(err))
+                    except asyncio.TimeoutError:
+                        LOGGER.warning('Error getting video frame: Timeout')
+                        break
+                    except aiopppp.NotConnectedError as err:
+                        LOGGER.warning('Error getting video frame: %s %s', err)
                         break
                     if not frame:
                         LOGGER.warning('Error getting video frame: empty frame')
