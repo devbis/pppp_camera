@@ -103,7 +103,10 @@ class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
                     },
                 )
         else:
-            user_input = {}
+            user_input = {
+                CONF_USERNAME: "admin",
+                CONF_PASSWORD: "6666",
+            }
 
         return self.async_show_form(
             step_id="user",
