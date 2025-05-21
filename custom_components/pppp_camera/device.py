@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 
 import aiopppp
@@ -73,6 +74,7 @@ class PPPPDevice:
 
         self._connected_num -= 1
         if self._connected_num == 0:
+            await asyncio.sleep(1);
             await self.device.close()
 
     async def async_setup(self) -> None:
