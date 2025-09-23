@@ -1,0 +1,52 @@
+{
+  "entity": {
+    "light": {
+      "white_lamp": {
+        "name": "White Lamp"
+      },
+      "ir_lamp": {
+        "name": "IR Lamp"
+      }
+    },
+    "switch": {
+      "white_lamp": {
+        "name": "White Lamp"
+      },
+      "ir_lamp": {
+        "name": "IR Lamp"
+      }
+    },
+    "button": {
+      "reboot": {
+        "name": "Reboot"
+      },
+      "white_lamp": {
+        "name": "White Lamp"
+      },
+      "ir_lamp": {
+        "name": "IR Lamp"
+      }
+    },
+    "camera": {
+      "camera": {
+        "name": "Camera"
+      }
+    }
+  },
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured"
+    },
+    "error": {
+      "cannot_connect": "Failed to connect"
+    },
+    "step": {
+      "user": {
+        "title": "Add Camera"
+      },
+      "reconfigure": {
+        "title": "Edit Camera"
+      }
+    }
+  }
+}
