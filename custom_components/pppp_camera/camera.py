@@ -8,7 +8,7 @@ from functools import cached_property
 import aiopppp
 import voluptuous as vol
 from aiohttp import web
-from homeassistant.components.camera import Camera
+from homeassistant.components.camera import Camera, CameraEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_platform
@@ -106,13 +106,15 @@ async def async_setup_entry(
 class PPPPCamera(PPPPBaseEntity, Camera):
     """An implementation of a PPPP camera."""
     _attr_is_streaming = True
+    _attr_has_entity_name = True
+    description = CameraEntityDescription(key = "camera", translation_key = "camera")
 
     def __init__(self, device: PPPPDevice) -> None:
         """Initialize a PPPP camera."""
         PPPPBaseEntity.__init__(self, device)
         Camera.__init__(self)
 
-        self._attr_name = self.device.dev_id
+        #self._attr_name = self.device.dev_id
         self._attr_unique_id = f'{self.device.dev_id}_camera'
 
     @cached_property

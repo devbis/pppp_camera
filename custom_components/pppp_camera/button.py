@@ -1,6 +1,10 @@
 """PPPP Buttons."""
 
-from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
+from collections.abc import Callable, Coroutine
+from dataclasses import dataclass
+from typing import Any
+
+from homeassistant.components.button import ButtonDeviceClass, ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -11,35 +15,80 @@ from .device import PPPPDevice
 from .entity import PPPPBaseEntity
 
 
+@dataclass(frozen=True, kw_only=True)
+class PPPPButtonEntityDescription(ButtonEntityDescription):
+    """Describes PPPP button entity."""
+
+    press_fn: Callable[
+        [PPPPDevice], Callable[[Any], Coroutine[Any, Any, None]]
+    ]
+    press_data: Any
+    supported_fn: Callable[[PPPPDevice, HomeAssistant], bool]
+
+
+BUTTONS: tuple[PPPPButtonEntityDescription, ...] = (
+    PPPPButtonEntityDescription(
+        key="reboot",
+        translation_key="reboot",
+        press_fn=lambda device: device.async_reboot,
+        press_data=None,
+        supported_fn=lambda device, _: bool(device.device.properties.get("auth", False)),
+        device_class = ButtonDeviceClass.RESTART,
+        entity_category = EntityCategory.CONFIG,
+    ),
+    PPPPButtonEntityDescription(
+        key="white_lamp",
+        translation_key="white_lamp",
+        press_fn=lambda device: device.async_white_light_toggle,
+        press_data=None,
+        supported_fn=lambda device, hass: 'lamp' in device.device.properties and hass.data[DOMAIN]["config"]["lamp_entity_type"] == "button",
+        icon="mdi:lightbulb"
+    ),
+    PPPPButtonEntityDescription(
+        key="ir_lamp",
+        translation_key="ir_lamp",
+        press_fn=lambda device: device.async_ir_light_toggle,
+        press_data=None,
+        supported_fn=lambda device, hass: 'lamp' in device.device.properties and hass.data[DOMAIN]["config"]["lamp_entity_type"] == "button",
+        icon="mdi:lightbulb-night"
+    ),
+)
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up PPPP button based on a config entry."""
+    """Set up a PPPP button platform."""
     device = hass.data[DOMAIN][config_entry.unique_id]
-    async_add_entities([RebootButton(device)])  # , SetSystemDateAndTimeButton(device)])
 
+    async_add_entities(
+        PPPPButton(device, description)
+        for description in BUTTONS
+        if description.supported_fn(device, hass)
+    )
 
-class RebootButton(PPPPBaseEntity, ButtonEntity):
-    """Defines a PPPP reboot button."""
+class PPPPButton(PPPPBaseEntity, ButtonEntity):
+    """A PPPP button."""
 
-    _attr_device_class = ButtonDeviceClass.RESTART
-    _attr_entity_category = EntityCategory.CONFIG
+    entity_description: PPPPButtonEntityDescription
+    _attr_has_entity_name = True
 
-    def __init__(self, device: PPPPDevice) -> None:
-        """Initialize the button entity."""
+    def __init__(
+        self, device: PPPPDevice, description: PPPPButtonEntityDescription
+    ) -> None:
+        """Initialize the button."""
         super().__init__(device)
-        self._attr_name = f"{self.device.dev_id} Reboot"
-        self._attr_unique_id = f"{self.device.dev_id}_reboot"
+
+        self._attr_unique_id = f"{self.device.dev_id}_{description.key}"
+        self.entity_description = description
 
     async def async_press(self) -> None:
-        """Send out a SystemReboot command."""
-        if self.device.device.is_connected:
-            await self.device.device.reboot()
-        else:
-            async with self.device.device as device:
-                await device.reboot()
+        """Handle button press."""
+        await self.entity_description.press_fn(self.device)(
+            self.entity_description.press_data
+        )
+
 
 
 # class SetSystemDateAndTimeButton(PPPPBaseEntity, ButtonEntity):

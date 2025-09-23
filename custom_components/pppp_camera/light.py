@@ -1,4 +1,4 @@
-"""PPPP switches for controlling cameras."""
+"""PPPP lights for controlling cameras."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from typing import Any
 
-from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.components.light import ColorMode, LightEntity, LightEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -17,8 +17,8 @@ from .entity import PPPPBaseEntity
 
 
 @dataclass(frozen=True, kw_only=True)
-class PPPPSwitchEntityDescription(SwitchEntityDescription):
-    """Describes PPPP switch entity."""
+class PPPPLightEntityDescription(LightEntityDescription):
+    """Describes PPPP light entity."""
 
     turn_on_fn: Callable[
         [PPPPDevice], Callable[[Any], Coroutine[Any, Any, None]]
@@ -28,27 +28,28 @@ class PPPPSwitchEntityDescription(SwitchEntityDescription):
     ]
     turn_on_data: Any
     turn_off_data: Any
-    supported_fn: Callable[[PPPPDevice, HomeAssistant], bool]
+    supported_fn: Callable[[PPPPDevice], bool]
 
 
-SWITCHES: tuple[PPPPSwitchEntityDescription, ...] = (
-    PPPPSwitchEntityDescription(
+LIGHTS: tuple[PPPPLightEntityDescription, ...] = (
+    PPPPLightEntityDescription(
         key="white_lamp",
         translation_key="white_lamp",
         turn_on_data=None,
         turn_off_data=None,
         turn_on_fn=lambda device: device.async_white_light_on,
         turn_off_fn=lambda device: device.async_white_light_off,
-        supported_fn=lambda device, hass: 'lamp' in device.device.properties and hass.data[DOMAIN]["config"]["lamp_entity_type"] == "switch",
+        supported_fn=lambda device, hass: 'lamp' in device.device.properties and hass.data[DOMAIN]["config"]["lamp_entity_type"] == "light",
     ),
-    PPPPSwitchEntityDescription(
+    PPPPLightEntityDescription(
         key="ir_lamp",
         translation_key="ir_lamp",
         turn_on_data=None,
         turn_off_data=None,
         turn_on_fn=lambda device: device.async_ir_light_on,
         turn_off_fn=lambda device: device.async_ir_light_off,
-        supported_fn=lambda device, hass: 'lamp' in device.device.properties and hass.data[DOMAIN]["config"]["lamp_entity_type"] == "switch",
+        supported_fn=lambda device, hass: 'lamp' in device.device.properties and hass.data[DOMAIN]["config"]["lamp_entity_type"] == "light",
+        icon="mdi:lightbulb-night",
     ),
 )
 
@@ -58,26 +59,29 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up a PPPP switch platform."""
+    """Set up a PPPP light platform."""
     device = hass.data[DOMAIN][config_entry.unique_id]
 
     async_add_entities(
-        PPPPSwitch(device, description)
-        for description in SWITCHES
+        PPPPLight(device, description)
+        for description in LIGHTS
         if description.supported_fn(device, hass)
     )
 
 
-class PPPPSwitch(PPPPBaseEntity, SwitchEntity):
-    """A PPPP switch."""
+class PPPPLight(PPPPBaseEntity, LightEntity):
+    """A PPPP light."""
 
-    entity_description: PPPPSwitchEntityDescription
+    entity_description: PPPPLightEntityDescription
     _attr_has_entity_name = True
+    # Set supported color modes for on/off lights
+    _attr_supported_color_modes = {ColorMode.ONOFF}
+    _attr_color_mode = ColorMode.ONOFF
 
     def __init__(
-        self, device: PPPPDevice, description: PPPPSwitchEntityDescription
+        self, device: PPPPDevice, description: PPPPLightEntityDescription
     ) -> None:
-        """Initialize the switch."""
+        """Initialize the light."""
         super().__init__(device)
 
         self._attr_is_on = False
@@ -86,14 +90,14 @@ class PPPPSwitch(PPPPBaseEntity, SwitchEntity):
         self.entity_description = description
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn on switch."""
+        """Turn on light."""
         self._attr_is_on = True
         await self.entity_description.turn_on_fn(self.device)(
             self.entity_description.turn_on_data
         )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn off switch."""
+        """Turn off light."""
         self._attr_is_on = False
         await self.entity_description.turn_off_fn(self.device)(
             self.entity_description.turn_off_data

@@ -97,25 +97,37 @@ class PPPPDevice:
         """Shut it all down."""
         await self.device.close()
 
-    async def async_white_light_on(self, data):
+    async def async_white_light_toggle(self, data):
         """Turn on the white light."""
         async with self.ensure_connected():
-            await self.device.session.toggle_whitelight(1)
+            await self.device.session.toggle_whitelight(data)
+
+    async def async_white_light_on(self, data):
+        """Turn on the white light."""
+        await self.async_white_light_toggle(1)
 
     async def async_white_light_off(self, data):
         """Turn on the white light."""
+        await self.async_white_light_toggle(0)
+
+    async def async_ir_light_toggle(self, data):
+        """Turn on the white light."""
         async with self.ensure_connected():
-            await self.device.session.toggle_whitelight(0)
+            await self.device.session.toggle_ir(data)
 
     async def async_ir_light_on(self, data):
         """Turn on the white light."""
-        async with self.ensure_connected():
-            await self.device.session.toggle_ir(1)
+        await self.async_ir_light_toggle(1)
 
     async def async_ir_light_off(self, data):
         """Turn on the white light."""
+        await self.async_ir_light_toggle(0)
+
+    async def async_reboot(self, data) -> None:
+        """Send out a SystemReboot command."""
         async with self.ensure_connected():
-            await self.device.session.toggle_ir(0)
+            await self.device.reboot()
+
 
     @contextlib.asynccontextmanager
     async def ensure_connected(self):

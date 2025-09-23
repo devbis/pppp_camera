@@ -69,19 +69,23 @@ class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    @staticmethod
-    @callback
-    def async_get_options_flow(
-        config_entry: ConfigEntry,
-    ) -> OptionsFlow:
-        """Get the options flow for this handler."""
-        return PPPPCameraOptionsFlowHandler()
+    # @staticmethod
+    # @callback
+    # def async_get_options_flow(
+    #     config_entry: ConfigEntry,
+    # ) -> OptionsFlow:
+    #     """Get the options flow for this handler."""
+    #     return PPPPCameraOptionsFlowHandler()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle a flow initialized by the user."""
         errors: dict[str, str] = {}
+
+        defaults = self.hass.data.get(DOMAIN, {}).get("config", {})
+        default_username = defaults.get("default_username")
+        default_password = defaults.get("default_password")
 
         if user_input is not None:
             errors, dev_id = await async_validate_input(self.hass, user_input)
@@ -90,22 +94,22 @@ class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
                     {CONF_HOST: user_input[CONF_HOST]}
                 )
 
-                # Storing data in option, to allow for changing them later
-                # using an options flow.
                 await self.async_set_unique_id(dev_id, raise_on_progress=False)
+                self._abort_if_unique_id_configured()
+
                 return self.async_create_entry(
                     title=dev_id,
                     data={},
                     options={
                         CONF_HOST: user_input[CONF_HOST],
-                        CONF_USERNAME: user_input.get(CONF_USERNAME),
-                        CONF_PASSWORD: user_input.get(CONF_PASSWORD),
+                        CONF_USERNAME: user_input.get(CONF_USERNAME, default_username),
+                        CONF_PASSWORD: user_input.get(CONF_PASSWORD, default_password),
                     },
                 )
         else:
             user_input = {
-                CONF_USERNAME: "admin",
-                CONF_PASSWORD: "6666",
+                CONF_USERNAME: default_username,
+                CONF_PASSWORD: default_password,
             }
 
         return self.async_show_form(
@@ -114,43 +118,85 @@ class PPPPCameraFlowHandler(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-
-class PPPPCameraOptionsFlowHandler(OptionsFlow):
-    """Handle PPPP Camera options."""
-
-    async def async_step_init(
+    async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage PPPP Camera options."""
+        """Handle a flow initialized by the user."""
         errors: dict[str, str] = {}
+
+        defaults = self.hass.data.get(DOMAIN, {}).get("config", {})
+        default_username = defaults.get("default_username")
+        default_password = defaults.get("default_password")
 
         if user_input is not None:
             errors, dev_id = await async_validate_input(self.hass, user_input)
             if not errors:
-                for entry in self.hass.config_entries.async_entries(DOMAIN):
-                    if (
-                        entry.entry_id != self.config_entry.entry_id
-                        and entry.options[CONF_HOST] == user_input[CONF_HOST]
-                    ):
-                        errors = {CONF_HOST: "already_configured"}
+                await self.async_set_unique_id(dev_id, raise_on_progress=False)
+                self._abort_if_unique_id_mismatch()
 
-                if not errors:
-                    return self.async_create_entry(
-                        title=dev_id,
-                        data={
-                            CONF_HOST: user_input[CONF_HOST],
-                            CONF_USERNAME: user_input.get(CONF_USERNAME),
-                            CONF_PASSWORD: user_input.get(CONF_PASSWORD),
-                        },
-                    )
+                return self.async_update_reload_and_abort(
+                    self._get_reconfigure_entry(),
+                    options={
+                        CONF_HOST: user_input[CONF_HOST],
+                        CONF_USERNAME: user_input.get(CONF_USERNAME, default_username),
+                        CONF_PASSWORD: user_input.get(CONF_PASSWORD, default_password),
+                    },
+                )
         else:
-            user_input = {}
+            user_input = {
+                    CONF_HOST: self._get_reconfigure_entry().options[CONF_HOST],
+                    CONF_USERNAME: self._get_reconfigure_entry().options[CONF_USERNAME],
+                    CONF_PASSWORD: self._get_reconfigure_entry().options[CONF_PASSWORD],
+                }
 
         return self.async_show_form(
-            step_id="init",
-            data_schema=async_get_schema(user_input or self.config_entry.options),
+            step_id="reconfigure",
+            data_schema=async_get_schema(user_input, show_name=True),
             errors=errors,
         )
+
+
+# class PPPPCameraOptionsFlowHandler(OptionsFlow):
+#     """Handle PPPP Camera options."""
+
+#     async def async_step_init(
+#         self, user_input: dict[str, Any] | None = None
+#     ) -> ConfigFlowResult:
+#         """Manage PPPP Camera options."""
+#         errors: dict[str, str] = {}
+
+#         # Load defaults from configuration.yaml
+#         defaults = self.hass.data.get(DOMAIN, {}).get("config", {})
+#         default_username = defaults.get("default_username")
+#         default_password = defaults.get("default_password")
+
+#         if user_input is not None:
+#             errors, dev_id = await async_validate_input(self.hass, user_input)
+#             if not errors:
+#                 for entry in self.hass.config_entries.async_entries(DOMAIN):
+#                     if (
+#                         entry.entry_id != self.config_entry.entry_id
+#                         and entry.options[CONF_HOST] == user_input[CONF_HOST]
+#                     ):
+#                         errors = {CONF_HOST: "already_configured"}
+
+#                 if not errors:
+#                     return self.async_create_entry(
+#                         title=dev_id,
+#                         data={
+#                             CONF_HOST: user_input[CONF_HOST],
+#                             CONF_USERNAME: user_input.get(CONF_USERNAME, default_username),
+#                             CONF_PASSWORD: user_input.get(CONF_PASSWORD, default_password),
+#                         },
+#                     )
+#         else:
+#             user_input = {}
+
+#         return self.async_show_form(
+#             step_id="init",
+#             data_schema=async_get_schema(user_input or self.config_entry.options),
+#             errors=errors,
+#         )
 
 
 class InvalidAuth(HomeAssistantError):
