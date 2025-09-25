@@ -45,7 +45,12 @@
         "title": "Add Camera"
       },
       "reconfigure": {
-        "title": "Edit Camera"
+        "title": "Edit Camera",
+        "description": "{name}"
+      },
+      "discovery_confirm": {
+        "title": "Add camera",
+        "description": "{name}"
       }
     }
   }

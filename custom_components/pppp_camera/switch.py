@@ -8,12 +8,14 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_LAMP
 from .device import PPPPDevice
 from .entity import PPPPBaseEntity
+from .config_helpers import get_platform_config
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -39,7 +41,8 @@ SWITCHES: tuple[PPPPSwitchEntityDescription, ...] = (
         turn_off_data=None,
         turn_on_fn=lambda device: device.async_white_light_on,
         turn_off_fn=lambda device: device.async_white_light_off,
-        supported_fn=lambda device, hass: 'lamp' in device.device.properties and hass.data[DOMAIN]["config"]["lamp_entity_type"] == "switch",
+        supported_fn=lambda device, hass: CONF_LAMP in device.device.properties and get_platform_config(hass)[CONF_LAMP] == Platform.SWITCH,
+        icon="mdi:lightbulb"
     ),
     PPPPSwitchEntityDescription(
         key="ir_lamp",
@@ -48,7 +51,8 @@ SWITCHES: tuple[PPPPSwitchEntityDescription, ...] = (
         turn_off_data=None,
         turn_on_fn=lambda device: device.async_ir_light_on,
         turn_off_fn=lambda device: device.async_ir_light_off,
-        supported_fn=lambda device, hass: 'lamp' in device.device.properties and hass.data[DOMAIN]["config"]["lamp_entity_type"] == "switch",
+        supported_fn=lambda device, hass: CONF_LAMP in device.device.properties and get_platform_config(hass)[CONF_LAMP] == Platform.SWITCH,
+        icon="mdi:lightbulb-night",
     ),
 )
 

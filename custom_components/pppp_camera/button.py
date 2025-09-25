@@ -6,13 +6,14 @@ from typing import Any
 
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
+from homeassistant.const import EntityCategory, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_LAMP
 from .device import PPPPDevice
 from .entity import PPPPBaseEntity
+from .config_helpers import get_config, get_platform_config
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -41,7 +42,7 @@ BUTTONS: tuple[PPPPButtonEntityDescription, ...] = (
         translation_key="white_lamp",
         press_fn=lambda device: device.async_white_light_toggle,
         press_data=None,
-        supported_fn=lambda device, hass: 'lamp' in device.device.properties and hass.data[DOMAIN]["config"]["lamp_entity_type"] == "button",
+        supported_fn=lambda device, hass: CONF_LAMP in device.device.properties and get_platform_config(hass)[CONF_LAMP] == Platform.BUTTON,
         icon="mdi:lightbulb"
     ),
     PPPPButtonEntityDescription(
@@ -49,7 +50,7 @@ BUTTONS: tuple[PPPPButtonEntityDescription, ...] = (
         translation_key="ir_lamp",
         press_fn=lambda device: device.async_ir_light_toggle,
         press_data=None,
-        supported_fn=lambda device, hass: 'lamp' in device.device.properties and hass.data[DOMAIN]["config"]["lamp_entity_type"] == "button",
+        supported_fn=lambda device, hass: CONF_LAMP in device.device.properties and get_platform_config(hass)[CONF_LAMP] == Platform.BUTTON,
         icon="mdi:lightbulb-night"
     ),
 )
