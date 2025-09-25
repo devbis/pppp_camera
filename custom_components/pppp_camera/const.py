@@ -27,3 +27,11 @@ DIR_RIGHT = "RIGHT"
 
 SERVICE_PTZ = "ptz"
 SERVICE_REBOOT = "reboot"
+
+SOURCE_DISCOVERY_CONFIRM = "discovery_confirm"
+
+CONF_DEFAULTS = "defaults"
+CONF_IP = "ip"
+CONF_DURATION = "duration"
+CONF_INTERVAL = "interval"
+CONF_LAMP = "lamp"

@@ -2,18 +2,32 @@
 
 import select
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
+from homeassistant.const import (
+    EVENT_HOMEASSISTANT_STOP,
+    Platform,
+    CONF_USERNAME,
+    CONF_PASSWORD,
+    CONF_PLATFORM,
+    CONF_DISCOVERY,
+    CONF_ENABLED,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 import voluptuous as vol
 
 from .camera import PPPPCamera
-from .const import DOMAIN, PLATFORMS
+from .discovery import async_start_discovery
+from .const import (
+    DOMAIN,
+    PLATFORMS,
+    CONF_DEFAULTS,
+    CONF_IP,
+    CONF_DURATION,
+    CONF_INTERVAL,
+    CONF_LAMP,
+)
 
-__all__ = [
-    "PPPPCamera",
-]
 
 from .device import PPPPDevice
 
@@ -21,14 +35,54 @@ CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: vol.Schema(
             {
-                vol.Optional("default_username", default="admin"): cv.string,
-                vol.Optional("default_password", default="6666"): cv.string,
-                vol.Optional("lamp_entity_type", default="switch"): vol.In(["switch", "light", "button"]),
+                vol.Optional(CONF_DEFAULTS, default={}): vol.Schema(
+                    {
+                        vol.Optional(CONF_USERNAME, default="admin"): cv.string,
+                        vol.Optional(CONF_PASSWORD, default="6666"): cv.string,
+                    }
+                ),
+                vol.Optional(CONF_PLATFORM, default={}): vol.Schema(
+                    {
+                        vol.Optional(CONF_LAMP, default=Platform.SWITCH): vol.In(
+                            [Platform.SWITCH, Platform.LIGHT, Platform.BUTTON]
+                        ),
+                    }
+                ),
+                vol.Optional(CONF_DISCOVERY, default={}): vol.Schema(
+                    {
+                        vol.Optional(CONF_ENABLED, default=True): cv.boolean,
+                        vol.Optional(CONF_DURATION, default=10): cv.positive_int,
+                        vol.Optional(CONF_INTERVAL, default=600): cv.positive_int,
+                        vol.Optional(CONF_IP): vol.Any(cv.string, [cv.string]),
+                    }
+                ),
             }
         )
     },
     extra=vol.ALLOW_EXTRA,
 )
+"""
+configuration.yaml example:
+
+pppp_camera:
+    defaults:
+        username: admin
+        password: 6666
+    platform:
+        lamp: switch    # switch or light, button
+    discovery:
+        enabled: true
+        duration: 10    # seconds to listen for devices during each discovery
+        interval: 600   # seconds between discovery attempts
+        ip:             # list of IPs to limit discovery to
+            - 192.168.1.1
+            - 192.168.1.2
+            - 192.168.1.3
+        # or single IP can also be specified (usually broadcast address)
+        ip: 192.168.1.255
+        # if 'ip' is not specified, discovery will listen on all interfaces
+"""
+
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     # init storage for registries
@@ -38,6 +92,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     if DOMAIN in config:
         conf = config[DOMAIN]
         hass.data[DOMAIN]["config"] = conf
+
+    await async_start_discovery(hass)
 
     return True
 
@@ -57,19 +113,12 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
 
     hass.data[DOMAIN][config_entry.unique_id] = device
 
-    device.platforms = [Platform.CAMERA, Platform.BUTTON, Platform.LIGHT, Platform.SWITCH]
-
-    # if 'lamp' in device.device.properties:
-    #     # Get lamp_entity_type from config.yaml
-    #     lamp_type = hass.data[DOMAIN].get("config", {}).get("lamp_entity_type", "switch")
-
-    #     match lamp_type:
-    #         case "light":
-    #             device.platforms += [Platform.LIGHT]
-    #         case "button":
-    #             device.platforms += [Platform.BUTTON]
-    #         case "switch":
-    #             device.platforms += [Platform.SWITCH]
+    device.platforms = [
+        Platform.CAMERA,
+        Platform.BUTTON,
+        Platform.LIGHT,
+        Platform.SWITCH,
+    ]
 
     await hass.config_entries.async_forward_entry_setups(config_entry, device.platforms)
 
