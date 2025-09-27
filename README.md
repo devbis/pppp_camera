@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `pppp` camera component allows Home Assistant to connect and integrate cheap Wi-Fi cameras such as **A9, X5**, and similar models using the **aiopppp** library. 
+The `pppp camera` component allows Home Assistant to connect and integrate cheap Wi-Fi cameras such as **A9, X5**, and similar models using the **aiopppp** library. 
 These cameras typically use the **Peer-to-Peer protocol** for communication, and this component enables live-streaming and snapshot capture within Home Assistant.
 
 ## Features
@@ -13,6 +13,7 @@ These cameras typically use the **Peer-to-Peer protocol** for communication, and
 - PTZ control through actions/services
 - White lights and IR lights control
 - Support for webrtc custom component
+- Automatic device discovery
 - (TBD) Sound streaming
 
 ## Tested camera prefixes
@@ -49,8 +50,62 @@ Or manually copy pppp_camera folder to custom_components folder in your config f
 
 ## Configuration
 
-Add component and insert camera IP address. If username and passwords are blank it will use default values for 
-authentication: `admin:6666`
+### Basic Configuration
+
+Add cameras through Home Assistant's **Devices & Services** interface by camera IP address. 
+If username and passwords are blank, it will use default values for authentication: `admin:6666`.
+
+### Advanced YAML Configuration (Optional)
+
+For advanced configuration options, you can add the following to your `configuration.yaml` file:
+
+```yaml
+pppp_camera:
+  defaults:
+    username: admin
+    password: 6666
+  platform:
+    lamp: switch    # one of [switch, light, button]
+  discovery:
+    enabled: true
+    duration: 10    # seconds to listen for devices during each discovery
+    interval: 600   # seconds between discovery attempts
+    ip:             # list of IPs to limit discovery to
+      - 192.168.1.1
+      - 192.168.1.2
+      - 192.168.1.3
+    # or single IP can also be specified (usually broadcast address)
+    ip: 192.168.1.255
+    # if 'ip' is not specified, discovery will listen on all interfaces
+```
+
+### Configuration Parameters
+
+#### `defaults` (optional)
+Default credentials used for all cameras when not specified during UI setup.
+
+- **`username`** (string, default: `admin`): Default username for camera authentication
+- **`password`** (string, default: `6666`): Default password for camera authentication
+
+#### `platform` (optional)
+Configure how certain entities are represented in Home Assistant.
+
+- **`lamp`** (string, default: `switch`): Platform type for lamp entities
+  - `switch`: Lamps appear as switch entities
+  - `light`: Lamps appear as light entities  
+  - `button`: Lamps appear as button entities
+
+#### `discovery` (optional)
+Configure automatic device discovery on your network.
+
+- **`enabled`** (boolean, default: `true`): Enable or disable automatic discovery
+- **`duration`** (integer, default: `10`): Time in seconds to listen for devices during each discovery cycle
+- **`interval`** (integer, default: `600`): Time in seconds between discovery attempts (600 = 10 minutes)
+- **`ip`** (string or list, optional): Limit discovery to specific IP addresses
+  - Can be a single IP address (e.g., `192.168.1.255` for broadcast)
+  - Can be a list of specific IP addresses
+  - If not specified, discovery listens on all available network interfaces
+
 
 ## Usage
 
