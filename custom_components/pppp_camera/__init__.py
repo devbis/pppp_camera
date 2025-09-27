@@ -69,7 +69,7 @@ pppp_camera:
         username: admin
         password: 6666
     platform:
-        lamp: switch    # switch or light, button
+        lamp: switch    # one of [switch, light, button]
     discovery:
         enabled: true
         duration: 10    # seconds to listen for devices during each discovery
