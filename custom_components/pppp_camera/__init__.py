@@ -18,8 +18,10 @@ import voluptuous as vol
 
 from .camera import PPPPCamera
 from .discovery import async_start_discovery
+from .config_helpers import get_config
 from .const import (
     DOMAIN,
+    LOGGER,
     PLATFORMS,
     CONF_DEFAULTS,
     CONF_IP,
@@ -89,9 +91,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data[DOMAIN] = {}
 
     # load optional global registry config
-    if DOMAIN in config:
-        conf = config[DOMAIN]
-        hass.data[DOMAIN]["config"] = conf
+    cfg = config if DOMAIN in config else CONFIG_SCHEMA({DOMAIN: {}})
+    hass.data[DOMAIN]["config"] = cfg[DOMAIN]
+    LOGGER.debug("Config: %s", get_config(hass))
 
     await async_start_discovery(hass)
 
